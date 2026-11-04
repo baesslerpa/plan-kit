@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1, viewport-fit=cover">
+<title>Konzept: plan-kit – Web Components für Agenten-Pläne</title>
+<style>
+:root{--bg:#faf9f5;--fg:#1f1e1b;--mut:#6b6860;--acc:#c96442;--card:#fff;--line:#e6e3da;--th:#f1eee6;--ok:#3d8b5f;--warn:#c9932c;--risk:#b5473a;--riskbg:#f8e5e2;--okbg:#e4f1e9;--qbg:#faf0dc;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#1d1c1a;--fg:#ece9e1;--mut:#a39f95;--card:#272623;--line:#3a3833;--th:#302e2a;--riskbg:#3a2522;--okbg:#21332a;--qbg:#3a3120}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#1d1c1a;--fg:#ece9e1;--mut:#a39f95;--card:#272623;--line:#3a3833;--th:#302e2a;--riskbg:#3a2522;--okbg:#21332a;--qbg:#3a3120}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;font:16px/1.55 system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+main{max-width:980px;margin:auto;padding:32px 20px 80px}
+h1{font-size:2rem;margin:.2em 0}h2{margin-top:2.2em;border-bottom:2px solid var(--line);padding-bottom:.3em}
+.tldr{background:var(--card);border-left:5px solid var(--acc);padding:16px 20px;border-radius:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card.sel{border:2px solid var(--acc)}.tag{font-size:.75rem;background:var(--acc);color:#fff;padding:2px 8px;border-radius:99px}
+code,pre{font-family:ui-monospace,monospace;font-size:.85rem}pre{background:#1f1e1b;color:#f3efe6;padding:14px;border-radius:8px;overflow:auto}
+details{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:8px 0}
+summary{cursor:pointer;font-weight:600}
+.callout{padding:12px 16px;border-radius:8px;margin:10px 0}.risk{background:var(--riskbg);border-left:4px solid var(--risk)}
+.dec{background:var(--okbg);border-left:4px solid var(--ok)}.q{background:var(--qbg);border-left:4px solid var(--warn)}
+table{border-collapse:collapse;width:100%;background:var(--card)}td,th{border:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+th{background:var(--th)}.mut{color:var(--mut)}ol.steps li{margin:6px 0}
+button{background:var(--acc);color:#fff;border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600}
+textarea{width:100%;min-height:80px;font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+.tw{overflow-x:auto}
+</style></head><body><main>
+<p class="mut">Konzept · Entwurf v0.4 · 4. November 2026</p>
+<h1>plan-kit</h1>
+<p>Eine kleine Bibliothek aus Web Components, mit der Claude Code Pläne, Explorationen und Reviews als HTML schreibt – <b>tokensparend, konsistent im Look und auf einen Blick lesbar</b>. Dazu ein schlankes Entscheidungs-Log nach dem Vorbild von Architecture Decision Records (ADRs).</p>
+
+<div class="tldr"><b>TL;DR</b><br>
+Der Agent schreibt nur semantische Tags wie <code>&lt;pk-option&gt;</code> oder <code>&lt;pk-decision&gt;</code>. Styling, Verhalten und Interaktion stecken in <b>einer</b> Lit-basierten JS-Datei, die versioniert vom <b>firmeneigenen Asset-Server</b> geladen wird. Große Features werden nicht zum Megadokument, sondern zu mehreren verlinkten Seiten: eine Feature-Übersicht, darunter Phasen und kleine Aufgaben. Pläne sind kurzlebig – akzeptierte Entscheidungen wandern in einen <code>decisions/</code>-Ordner im Repo und bleiben. Ein Claude-Code-Skill beschreibt die Komponenten kompakt, damit der Agent sie zuverlässig nutzt.<br><br><b>Native zuerst:</b> Das Kit stylt alle Standard-HTML-Elemente mit (<code>&lt;details&gt;</code>, <code>&lt;dialog&gt;</code>, <code>&lt;table&gt;</code>, <code>&lt;progress&gt;</code> …). Eigene Komponenten gibt es nur dort, wo HTML keine passende Semantik hat.</div>
+
+<h2>1. Problem</h2>
+<ul>
+<li>Markdown-Pläne werden lang und unübersichtlich → sie werden <b>nicht gelesen</b>, Architekturverständnis geht verloren.</li>
+<li>Freies HTML ist lesbarer, kostet aber viele Tokens (CSS, Layout jedes Mal neu) und sieht jedes Mal anders aus.</li>
+<li>Nach der Umsetzung ist der Plan wertlos – aber das <b>„Warum“</b> hinter Entscheidungen geht mit ihm verloren.</li>
+</ul>
+
+<h2>2. Lösungsansatz – Optionen</h2>
+<div class="grid">
+<div class="card"><b>A · Freies HTML</b><p class="mut">Agent schreibt alles selbst.</p>+ maximal flexibel<br>− viele Tokens<br>− inkonsistent</div>
+<div class="card sel"><span class="tag">gewählt</span> <b>B · Web Components, selbst gehostet</b><p class="mut">Semantische Tags + ein Skript.</p>+ wenig Tokens<br>+ immer gleicher Look<br>+ teilbar per Link<br>+ unabhängig von Drittanbietern<br>− braucht Netz (Fallback: Inline-Build)</div>
+<div class="card"><b>C · Markdown + Renderer</b><p class="mut">MD mit Erweiterungen, gerendert.</p>+ minimal Tokens<br>− Interaktion begrenzt<br>− eigener Parser nötig</div>
+</div>
+
+<h2>3. Tech-Stack</h2>
+<div class="tw"><table>
+<tr><th>Bereich</th><th>Wahl</th><th>Warum</th></tr>
+<tr><td>Komponenten</td><td>Lit (≈5 kB)</td><td>Echte Custom Elements, kein Build für Nutzer, angenehme DX. Alternative: Vanilla Custom Elements.</td></tr>
+<tr><td>Auslieferung</td><td>Eigener Asset-Server / S3</td><td>Liegt bei uns, kein Risiko, dass ein Anbieter verschwindet. Code darf öffentlich erreichbar sein, nichts Geheimes. <b>Version im Pfad</b> (<code>/plan-kit/1.2.0/</code>), damit alte Pläne stabil bleiben.</td></tr>
+<tr><td>Fallback</td><td>Inline-Build</td><td>Skript eingebettet, für Archiv und Teilen ohne Serverzugriff.</td></tr>
+<tr><td>Ohne JS</td><td>Progressive Enhancement</td><td>Nice to have, nicht kritisch: Inhalte stehen als normales HTML in den Tags, ohne JS bleibt der Text ungestylt lesbar.</td></tr>
+<tr><td>Diagramme</td><td>Mermaid (lazy geladen)</td><td>Sehr kompakte Syntax für den Agenten.</td></tr>
+<tr><td>Code</td><td>Shiki oder Prism (lazy)</td><td>Highlighting nur laden, wenn Code vorkommt.</td></tr>
+<tr><td>Basis-Stylesheet</td><td>Classless CSS</td><td>Stylt native Elemente direkt, ohne Klassen – der Agent schreibt einfach normales HTML. Moderne CSS-Features: <code>light-dark()</code>, <code>:has()</code>, <code>::details-content</code> und <code>interpolate-size</code> für animiertes Auf- und Zuklappen.</td></tr>
+<tr><td>Theme</td><td>CSS Custom Properties</td><td>Ein Look überall, Dark Mode per Variable.</td></tr>
+</table></div>
+
+<h2>4. Native HTML zuerst</h2>
+<p>Grundregel: Was HTML von Haus aus kann, wird nicht neu gebaut. Das Kit liefert dafür nur das Styling und, wo nötig, ein bisschen Verhalten.</p>
+<div class="tw"><table>
+<tr><th>Bedarf</th><th>Natives Element</th><th>Was das Kit ergänzt</th></tr>
+<tr><td>Aufklappbare Abschnitte</td><td><code>&lt;details&gt;</code> / <code>&lt;summary&gt;</code>, mit <code>name="…"</code> als Akkordeon</td><td>Styling, Animation – ersetzt die frühere <code>&lt;pk-section&gt;</code></td></tr>
+<tr><td>Callouts (Risiko, Frage, Hinweis)</td><td><code>&lt;aside data-kind="risk"&gt;</code></td><td>Farben und Icons per Attribut; offene Fragen werden gesammelt</td></tr>
+<tr><td>Schritte abhaken</td><td><code>&lt;ol&gt;</code> + <code>&lt;input type="checkbox"&gt;</code></td><td>Fortschritt in localStorage merken</td></tr>
+<tr><td>Fortschritt, Kennzahlen</td><td><code>&lt;progress&gt;</code>, <code>&lt;meter&gt;</code></td><td>Styling</td></tr>
+<tr><td>Detailansicht, Popups</td><td><code>&lt;dialog&gt;</code>, <code>popover</code>-Attribut</td><td>Styling; Öffnen per <code>commandfor</code>/<code>command</code>, mit kleinem Fallback-Skript für ältere Browser</td></tr>
+<tr><td>Diagramme und Bilder mit Unterschrift</td><td><code>&lt;figure&gt;</code> / <code>&lt;figcaption&gt;</code></td><td>Layout</td></tr>
+<tr><td>Code, Tastenkürzel, Ausgaben</td><td><code>&lt;pre&gt;&lt;code&gt;</code>, <code>&lt;kbd&gt;</code>, <code>&lt;samp&gt;</code></td><td>Highlighting (lazy)</td></tr>
+<tr><td>Hervorhebung, Begriffe, Daten</td><td><code>&lt;mark&gt;</code>, <code>&lt;abbr&gt;</code>, <code>&lt;dfn&gt;</code>, <code>&lt;time&gt;</code></td><td>Styling</td></tr>
+<tr><td>Tabellen, Filter</td><td><code>&lt;table&gt;</code>, <code>&lt;search&gt;</code></td><td>Responsive Scrollen, Styling</td></tr>
+</table></div>
+
+<h2>5. Eigene Komponenten (nur wo HTML nichts Passendes hat)</h2>
+<details open><summary>&lt;pk-summary&gt; – Kopf des Plans</summary>Ziel, TL;DR, Status (draft/review/approved). Immer zuerst – in 10 Sekunden erfassbar.</details>
+<details open><summary>&lt;pk-decision&gt; – Entscheidung (ADR-light)</summary>
+Feste Struktur in drei Teilen: <b>Kontext</b> (Situation, Rahmenbedingungen), <b>Entscheidung</b> (was und warum) und <b>Konsequenzen</b> (Folgen, Nacharbeiten, Folgeentscheidungen).<br>
+Attribute: <code>id</code> (z. B. <code>webhook-idempotenz</code>), <code>status</code> (proposed · accepted · superseded), <code>date</code>, optional <code>supersedes</code> / <code>follows-up</code> als Verweis auf andere Entscheidungen.</details>
+<details><summary>&lt;pk-amendment&gt; – datierter Nachtrag</summary>Statt eine Entscheidung zu überschreiben, wird neues Wissen mit Datum angehängt und als „nach der Entscheidung hinzugekommen“ markiert – z. B. Erfahrungen aus dem Betrieb oder geänderte Rahmenbedingungen. Grundlegende Änderungen = neue Entscheidung mit <code>supersedes</code>.</details>
+<details><summary>&lt;pk-options&gt; / &lt;pk-option&gt; – Lösungswege vergleichen</summary>Karten im Grid mit pros/cons-Attributen, <code>selected</code> markiert die Wahl.</details>
+<details><summary>&lt;pk-code&gt; / &lt;pk-diff&gt; – Code mit Randnotizen</summary>Sprache per Attribut, <code>&lt;pk-note line="12" severity="blocking"&gt;</code> für Annotationen.</details>
+<details><summary>&lt;pk-diagram&gt; – Mermaid-Wrapper</summary>Inhalt = Mermaid-Code, Rendering lazy.</details>
+<details><summary>&lt;pk-feedback&gt; – „Copy as prompt“</summary>Sammelt Häkchen, gewählte Optionen, Kommentare und offene Antworten → ein Prompt für Claude Code.</details>
+
+<h2>6. So schreibt der Agent einen Plan</h2>
+<pre>&lt;script type="module" src="https://assets.&lt;firma&gt;.de/plan-kit/1.0.0/plan-kit.js"&gt;&lt;/script&gt;
+
+&lt;pk-summary status="review" goal="Stripe-Webhooks idempotent machen"&gt;
+  Doppelte Events führen zu doppelten Buchungen. Fix über Event-ID-Tabelle.
+&lt;/pk-summary&gt;
+
+&lt;pk-options&gt;
+  &lt;pk-option title="DB-Unique-Key" selected pros="einfach;robust" cons="Migration nötig"&gt;&lt;/pk-option&gt;
+  &lt;pk-option title="Redis-Lock" pros="schnell" cons="neue Infra"&gt;&lt;/pk-option&gt;
+&lt;/pk-options&gt;
+
+&lt;pk-decision id="webhook-idempotenz" status="proposed" date="2026-11-04"&gt;
+  &lt;h4 slot="context"&gt;Kontext&lt;/h4&gt;&lt;p slot="context"&gt;Stripe liefert Events mehrfach aus.&lt;/p&gt;
+  &lt;h4 slot="decision"&gt;Entscheidung&lt;/h4&gt;&lt;p slot="decision"&gt;Unique-Key auf event_id in event_log.&lt;/p&gt;
+  &lt;h4 slot="consequences"&gt;Konsequenzen&lt;/h4&gt;&lt;p slot="consequences"&gt;Migration nötig; Folgeentscheidung zur Aufbewahrungsdauer.&lt;/p&gt;
+&lt;/pk-decision&gt;
+
+&lt;aside data-kind="risk"&gt;Alte Events ohne ID im Backlog.&lt;/aside&gt;
+&lt;aside data-kind="question"&gt;Wie lange Event-IDs aufbewahren?&lt;/aside&gt;
+
+&lt;details&gt;
+  &lt;summary&gt;Technische Details&lt;/summary&gt;
+  …
+&lt;/details&gt;
+
+&lt;ol data-steps&gt;
+  &lt;li&gt;&lt;input type="checkbox"&gt; Migration event_log anlegen&lt;/li&gt;
+  &lt;li&gt;&lt;input type="checkbox"&gt; Handler prüft ID vor Verarbeitung&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;pk-feedback&gt;&lt;/pk-feedback&gt;</pre>
+<p class="mut">Die Überschriften und Absätze stehen als normales HTML in den Tags – ohne JavaScript bleibt alles lesbar.</p>
+
+<h2>7. Entscheidungs-Log: <code>decisions/</code></h2>
+<p>Pläne sind kurzlebig, Entscheidungen bleiben. Deshalb trennt plan-kit beides:</p>
+<ol class="steps">
+<li>Im Plan entstehen Entscheidungen als <code>&lt;pk-decision status="proposed"&gt;</code>.</li>
+<li>Nach Freigabe setzt der Agent sie auf <code>accepted</code> und legt pro Entscheidung eine Datei im Repo an: <code>decisions/webhook-idempotenz.html</code> – Dateiname als kurze Verbphrase, klein, mit Bindestrichen.</li>
+<li>Der Plan selbst darf danach veralten; das „Warum“ liegt dauerhaft neben dem Code und ist im Git-Verlauf nachvollziehbar.</li>
+<li>Spätere Erkenntnisse kommen als <code>&lt;pk-amendment&gt;</code> dazu; wird eine Entscheidung abgelöst, entsteht eine neue mit <code>supersedes</code>, die alte wird <code>superseded</code>.</li>
+</ol>
+<div class="callout dec"><b>Entscheidung:</b> Ordnername „decisions“ statt „adr“ – verständlicher, und das Team legt dort eher auch Anbieter- oder Planungsentscheidungen ab.</div>
+<div class="callout dec"><b>Entscheidung:</b> Bewusst <b>ohne</b> Governance, Rollen, Abstimmungen und schwere ADR-Templates – für ein 8-köpfiges Team zu viel Prozess.</div>
+
+<h2>8. Struktur großer Features: mehrere verlinkte Seiten</h2>
+<p>Statt eines Megadokuments oder Tabs nutzt plan-kit das, was HTML ohnehin kann: Links. Das folgt gängigen Praktiken aus spec-getriebener Arbeit mit Coding-Agenten – langlebige Spec und kurzlebige Pläne trennen, ein Ordner pro Änderung, Aufgaben klein schneiden.</p>
+<pre>plans/
+  stripe-abos/
+    index.html                 ← Feature-Übersicht (langlebig)
+    phase-1-datenmodell/
+      index.html               ← Phasen-Übersicht
+      abo-tabelle-anlegen.html ← Aufgabe: Spec + Plan + Fortschritt
+      migration-bestandsdaten.html
+    phase-2-webhooks/
+      …
+    phase-3-app-ui/
+      …
+decisions/
+  webhook-idempotenz.html      ← bleibt, auch wenn plans/ veraltet</pre>
+<div class="tw"><table>
+<tr><th>Ebene</th><th>Inhalt</th><th>Lebensdauer</th></tr>
+<tr><td>Feature-Übersicht</td><td>Ziel, Warum, Scope und Nicht-Ziele, Liste der Phasen mit Status und Links, Verweise auf Entscheidungen. Kurz – nur das Was und Warum, keine Umsetzungsdetails.</td><td>So lange das Feature lebt</td></tr>
+<tr><td>Phase</td><td>Abgeschlossener, auslieferbarer Zwischenstand (z. B. Datenmodell, API, UI); Reihenfolge und Abhängigkeiten der Aufgaben.</td><td>Bis die Phase fertig ist</td></tr>
+<tr><td>Aufgabe</td><td>Kurze Spec, Umsetzungsplan, Schritte zum Abhaken, Risiken und offene Fragen.</td><td>Bis zum Merge</td></tr>
+<tr><td>Entscheidung</td><td>Kontext, Entscheidung, Konsequenzen (siehe oben).</td><td>Dauerhaft</td></tr>
+</table></div>
+<h3>Regeln für den Zuschnitt</h3>
+<ul>
+<li><b>Eine Aufgabe = ein Bereich, eine Session.</b> Was Datenbank, API und Frontend anfasst, sind drei Aufgaben.</li>
+<li><b>Reviewbar in etwa zehn Minuten:</b> Lässt sich der Diff nicht in dieser Zeit verstehen, war die Aufgabe zu groß.</li>
+<li><b>Klare Ein- und Ausgaben</b> pro Aufgabe, damit eine neue Session sie ohne Vorwissen umsetzen kann.</li>
+<li><b>Bei Bedarf getrennt nach Bereich</b>, z. B. eigene Aufgabenseiten für Backend und Frontend.</li>
+</ul>
+<h3>Navigation – nativ</h3>
+<ul>
+<li>Jede Seite hat oben eine Brotkrumen-Navigation als <code>&lt;nav aria-label="Pfad"&gt;</code> mit normalen Links: Feature › Phase › Aufgabe.</li>
+<li>Übersichten listen Unterseiten als <code>&lt;ol&gt;</code> mit Links und <code>data-status="todo | doing | done"</code>; das Kit zeigt daraus Status-Badges und einen <code>&lt;progress&gt;</code>-Balken.</li>
+<li>Links zu Entscheidungen auf <code>decisions/…</code> werden automatisch als Entscheidungs-Verweis mit Status angezeigt.</li>
+</ul>
+<div class="callout dec"><b>Entscheidung:</b> Mehrere verlinkte Dateien statt Tabs oder einem langen Dokument. Jede Datei bleibt klein, einzeln reviewbar und kann einer neuen Agenten-Session gezielt mitgegeben werden.</div>
+
+<h2>9. Skill für Claude Code</h2>
+<ul>
+<li><code>SKILL.md</code> mit Komponenten-Referenz in Kurzform (Tag, Attribute, ein Beispiel) – Ziel: unter 1.500 Tokens.</li>
+<li>Regeln: immer mit <code>&lt;pk-summary&gt;</code> beginnen, Details in <code>&lt;details&gt;</code>, offene Fragen nie im Fließtext verstecken, kein eigenes CSS, Inhalte als normales HTML in den Tags.</li>
+<li><b>Native zuerst:</b> Erst ein Standard-HTML-Element wählen; ein <code>pk-</code>-Tag nur, wenn es in der Referenz steht. Keine selbstgebauten Klapp-, Dialog- oder Fortschrittselemente.</li>
+<li><b>Größe prüfen:</b> Kleine Änderungen bekommen eine einzelne Aufgabenseite; größere Features die Ordnerstruktur aus Feature-Übersicht, Phasen und Aufgaben. Nach jeder erledigten Aufgabe den Status in den Übersichten nachziehen.</li>
+<li>Vor dem Planen bestehende Einträge in <code>decisions/</code> lesen und nicht stillschweigend widersprechen; nach Freigabe akzeptierte Entscheidungen dorthin schreiben.</li>
+<li>Passt zu den bestehenden Pair-Skills (pair-feature, pair-bugfix, walkthrough): deren Pläne/Walkthroughs als plan-kit-HTML ausgeben.</li>
+</ul>
+
+<h2>10. Risiken & offene Punkte</h2>
+<div class="callout risk"><b>Risiko:</b> Asset-Server nicht erreichbar → kein Styling. Gegenmittel: Pläne bleiben dank Progressive Enhancement lesbar; Inline-Build fürs Archivieren/Teilen.</div>
+<div class="callout risk"><b>Risiko:</b> Breaking Changes an Komponenten. Gegenmittel: SemVer + Version immer im Pfad pinnen.</div>
+<div class="callout risk"><b>Risiko:</b> Sehr neue Features (Invoker-Commands, Animation von <code>&lt;details&gt;</code>) fehlen in älteren Browsern. Gegenmittel: Sie verbessern nur, die Grundfunktion bleibt; Fallback-Skript nur für Dialog-Öffnen.</div>
+<div class="callout risk"><b>Risiko:</b> <code>decisions/</code> verwaist, wenn niemand Entscheidungen überträgt. Gegenmittel: Der Skill macht das Übertragen zum festen letzten Schritt.</div>
+<div class="callout risk"><b>Risiko:</b> Status in den Übersichten läuft den Aufgaben hinterher. Gegenmittel: Skill-Regel zum Nachziehen; später eventuell ein kleines Skript, das den Status aus den Aufgabenseiten einsammelt.</div>
+<div class="callout q"><b>Offen:</b> Sollen <code>plans/</code> nach Abschluss im Repo bleiben, archiviert oder gelöscht werden?</div>
+<div class="callout dec"><b>Entscheidung:</b> Lit statt React – kein Build-Schritt für Konsumenten, kleine Bundle-Größe.</div>
+<div class="callout dec"><b>Entscheidung:</b> Native HTML-Elemente haben Vorrang und werden vom Kit mitgestylt. <code>pk-section</code>, <code>pk-steps</code>, <code>pk-risk</code> und <code>pk-question</code> entfallen zugunsten von <code>&lt;details&gt;</code>, <code>&lt;ol&gt;</code> mit Checkboxen und <code>&lt;aside&gt;</code>.</div>
+<div class="callout dec"><b>Entscheidung:</b> Hosting auf dem firmeneigenen Asset-Server/S3 statt öffentlichem CDN – Unabhängigkeit vom Anbieter.</div>
+<div class="callout dec"><b>Entscheidung:</b> Lesbarkeit ohne JS ist nice to have, wird aber von Anfang an mitgedacht, weil es kaum Aufwand kostet.</div>
+
+<h2>11. Roadmap</h2>
+<ol class="steps">
+<li><b>MVP:</b> Classless-Basis-Stylesheet für native Elemente (details, aside, ol mit Checkboxen, table, dialog, progress), dazu summary und decision – Repo, Deployment auf den Asset-Server, Skill.</li>
+<li><code>decisions/</code>-Workflow im Skill, amendment, options; Ordnerstruktur für große Features mit Brotkrumen-Navigation und Status-Übersichten.</li>
+<li>code/diff mit Notizen, diagram, feedback / „Copy as prompt“, Fortschritt speichern.</li>
+<li>Inline-Build, Dark Mode, eventuell Tabs; später: Verifikations-Agent prüft Code gegen <code>decisions/</code>.</li>
+</ol>
+
+<h2>Feedback an Claude</h2>
+<textarea id="fb" placeholder="Anmerkungen zum Konzept…"></textarea><br><br>
+<button onclick="navigator.clipboard.writeText('Feedback zum plan-kit-Konzept:\n'+document.getElementById('fb').value);this.textContent='Kopiert ✓'">Copy as prompt</button>
+</main></body></html>
