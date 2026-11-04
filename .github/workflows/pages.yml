@@ -1,0 +1,91 @@
+# Veröffentlicht plan-kit auf GitHub Pages, versioniert im Pfad:
+#   https://<owner>.github.io/plan-kit/<version>/plan-kit.js
+#
+# Ein Pages-Deployment ersetzt immer die ganze Seite. Deshalb baut jeder Lauf
+# alle Versions-Tags (X.Y.Z) neu – alte Versionen bleiben so dauerhaft erreichbar.
+name: Pages
+
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Alle Versionen bauen
+        run: |
+          set -eu
+          mkdir -p _site
+          tags=$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V)
+          [ -n "$tags" ] || { echo "Keine Versions-Tags gefunden." >&2; exit 1; }
+          for tag in $tags; do
+            echo "::group::$tag"
+            dir="$RUNNER_TEMP/build-$tag"
+            git worktree add --detach "$dir" "$tag"
+            pkg_version=$(node -p "require('$dir/package.json').version")
+            if [ "$pkg_version" != "$tag" ]; then
+              echo "::error::Tag $tag passt nicht zur package.json-Version $pkg_version"
+              exit 1
+            fi
+            (cd "$dir" && npm ci --no-audit --no-fund && npm run build)
+            mkdir -p "_site/$tag/examples"
+            cp "$dir"/dist/* "_site/$tag/"
+            # Beispiele gegen die Dateien derselben Version verlinken.
+            for f in "$dir"/examples/*.html; do
+              sed 's#\.\./dist/#../#g' "$f" > "_site/$tag/examples/$(basename "$f")"
+            done
+            git worktree remove --force "$dir"
+            echo "::endgroup::"
+          done
+          latest=$(echo "$tags" | tail -n1)
+          cp docs/konzept.html _site/konzept.html
+          {
+            echo '<!doctype html><html lang="de"><head><meta charset="utf-8">'
+            echo '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            echo '<title>plan-kit</title>'
+            echo "<link rel=\"stylesheet\" href=\"$latest/plan-kit.css\">"
+            echo "<script type=\"module\" src=\"$latest/plan-kit.js\"></script>"
+            echo '</head><body><h1>plan-kit</h1>'
+            echo '<p>Web Components für Agenten-Pläne. <a href="konzept.html">Konzept</a></p>'
+            echo "<pre><code>&lt;link rel=\"stylesheet\" href=\"https://${GITHUB_REPOSITORY_OWNER}.github.io/plan-kit/$latest/plan-kit.css\"&gt;"
+            echo "&lt;script type=\"module\" src=\"https://${GITHUB_REPOSITORY_OWNER}.github.io/plan-kit/$latest/plan-kit.js\"&gt;&lt;/script&gt;</code></pre>"
+            echo '<h2>Versionen</h2><table><tr><th>Version</th><th>Dateien</th><th>Beispiel</th></tr>'
+            for tag in $(echo "$tags" | sort -rV); do
+              echo "<tr><td>$tag</td><td><a href=\"$tag/plan-kit.js\">plan-kit.js</a> · <a href=\"$tag/plan-kit.css\">plan-kit.css</a></td><td><a href=\"$tag/examples/beispiel-plan.html\">Beispielplan</a></td></tr>"
+            done
+            echo '</table></body></html>'
+          } > _site/index.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

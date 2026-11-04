@@ -14,8 +14,8 @@ Schreibe Pläne als HTML-Datei. Das Kit liefert Look und Verhalten – du schrei
 <html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Titel</title>
-<link rel="stylesheet" href="https://assets.example.de/plan-kit/0.1.0/plan-kit.css">
-<script type="module" src="https://assets.example.de/plan-kit/0.1.0/plan-kit.js"></script>
+<link rel="stylesheet" href="https://baesslerpa.github.io/plan-kit/0.1.0/plan-kit.css">
+<script type="module" src="https://baesslerpa.github.io/plan-kit/0.1.0/plan-kit.js"></script>
 </head><body>
 <h1>Titel</h1>
 <pk-summary status="draft" goal="Ein Satz: was soll erreicht werden">
