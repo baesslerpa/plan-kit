@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stripe-Webhooks idempotent machen</title>
+<script type="module" src="../dist/plan-kit.js"></script>
+</head>
+<body>
+
+<h1>Stripe-Webhooks idempotent machen</h1>
+
+<pk-summary status="review" goal="Stripe-Webhooks idempotent machen">
+  <p>Doppelte Events führen zu doppelten Buchungen. Fix über eine Event-ID-Tabelle mit Unique-Key.</p>
+</pk-summary>
+
+<h2>Entscheidung</h2>
+
+<pk-decision id="webhook-idempotenz" status="proposed" date="2026-11-04" heading="Webhook-Events über Unique-Key deduplizieren">
+  <h4 slot="context">Kontext</h4><p slot="context">Stripe liefert Events mehrfach aus (at-least-once). Unser Handler bucht aktuell bei jedem Eingang.</p>
+  <h4 slot="decision">Entscheidung</h4><p slot="decision">Unique-Key auf <code>event_id</code> in <code>event_log</code>; der Handler schreibt die ID in derselben Transaktion wie die Buchung.</p>
+  <h4 slot="consequences">Konsequenzen</h4><p slot="consequences">Migration nötig. Folgeentscheidung zur Aufbewahrungsdauer der IDs.</p>
+</pk-decision>
+
+<pk-decision id="event-ids-90-tage" status="accepted" date="2026-11-05" follows-up="webhook-idempotenz">
+  <h4 slot="context">Kontext</h4><p slot="context">Stripe stellt Events maximal 30 Tage lang erneut zu.</p>
+  <h4 slot="decision">Entscheidung</h4><p slot="decision">Event-IDs 90 Tage aufbewahren, danach per Cronjob löschen.</p>
+  <h4 slot="consequences">Konsequenzen</h4><p slot="consequences">Kleiner nächtlicher Job; Tabelle bleibt klein.</p>
+</pk-decision>
+
+<aside data-kind="risk">Alte Events ohne ID im Backlog.</aside>
+<aside data-kind="question">Brauchen wir für Bestandsdaten ein Backfill der Event-IDs?</aside>
+<aside data-kind="note">Stripe-Doku: <a href="https://docs.stripe.com/webhooks">Webhooks</a>.</aside>
+
+<h2>Umsetzung</h2>
+
+<ol data-steps>
+  <li><input type="checkbox" checked> Migration <code>event_log</code> anlegen</li>
+  <li><input type="checkbox"> Handler prüft ID vor Verarbeitung</li>
+  <li><input type="checkbox"> Test für doppelte Zustellung</li>
+</ol>
+
+<p>Fortschritt: <progress value="1" max="3">1 von 3</progress></p>
+
+<details name="technik" open>
+  <summary>Technische Details</summary>
+  <pre><code>CREATE TABLE event_log (
+  event_id text PRIMARY KEY,
+  received_at timestamptz NOT NULL DEFAULT now()
+);</code></pre>
+</details>
+<details name="technik">
+  <summary>Betroffene Dateien</summary>
+  <table>
+    <tr><th>Datei</th><th>Änderung</th></tr>
+    <tr><td><code>src/webhooks/stripe.ts</code></td><td>ID-Prüfung, Transaktion</td></tr>
+    <tr><td><code>migrations/2026-11-04-event-log.sql</code></td><td>neu</td></tr>
+  </table>
+</details>
+
+<aside data-kind="question">Wer reviewt die Migration – Backend oder Ops?</aside>
+
+<p><button commandfor="rollback" command="show-modal">Rollback-Plan anzeigen</button></p>
+<dialog id="rollback">
+  <h3>Rollback</h3>
+  <p>Handler-Änderung per Feature-Flag <kbd>STRIPE_IDEMPOTENT</kbd> abschalten; Tabelle bleibt bestehen.</p>
+  <button commandfor="rollback" command="close">Schließen</button>
+</dialog>
+
+</body>
+</html>
