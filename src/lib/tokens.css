@@ -1,0 +1,17 @@
+/* Token-Farben fürs Syntax-Highlighting. Wird ins Basis-Stylesheet und in pk-code/pk-diff übernommen.
+ * Die Farben selbst sind Variablen in base.css (--pk-tok-*). */
+[data-t="keyword"], [data-t="command"] { color: var(--pk-tok-keyword); }
+[data-t="string"], [data-t="code-inline"] { color: var(--pk-tok-string); }
+[data-t="comment"], [data-t="meta"] { color: var(--pk-tok-comment); }
+[data-t="comment"] { font-style: italic; }
+[data-t="number"], [data-t="literal"] { color: var(--pk-tok-number); }
+[data-t="function"] { color: var(--pk-tok-function); }
+[data-t="type"], [data-t="variable"] { color: var(--pk-tok-type); }
+[data-t="property"], [data-t="attr"] { color: var(--pk-tok-property); }
+[data-t="tag"] { color: var(--pk-tok-tag); }
+[data-t="selector"] { color: var(--pk-tok-function); }
+[data-t="operator"] { color: var(--pk-tok-operator); }
+[data-t="inserted"] { color: var(--pk-ok); }
+[data-t="deleted"] { color: var(--pk-risk); }
+[data-t="heading"] { color: var(--pk-tok-keyword); font-weight: 700; }
+[data-t="link"] { color: var(--pk-tok-string); text-decoration: underline; }

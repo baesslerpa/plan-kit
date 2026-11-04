@@ -14,6 +14,14 @@
   <p>Doppelte Events führen zu doppelten Buchungen. Fix über eine Event-ID-Tabelle mit Unique-Key.</p>
 </pk-summary>
 
+<h2>Lösungswege</h2>
+
+<pk-options>
+  <pk-option heading="DB-Unique-Key" selected pros="einfach;robust;transaktional mit der Buchung" cons="Migration nötig"></pk-option>
+  <pk-option heading="Redis-Lock" pros="schnell" cons="neue Infra;Lock kann verfallen"></pk-option>
+  <pk-option heading="Stripe Idempotency-Keys" cons="gilt nur für ausgehende Requests, nicht für Webhooks">Naheliegend, löst aber das falsche Problem.</pk-option>
+</pk-options>
+
 <h2>Entscheidung</h2>
 
 <pk-decision id="webhook-idempotenz" status="proposed" date="2026-11-04" heading="Webhook-Events über Unique-Key deduplizieren">
@@ -32,6 +40,67 @@
 <aside data-kind="question">Brauchen wir für Bestandsdaten ein Backfill der Event-IDs?</aside>
 <aside data-kind="note">Stripe-Doku: <a href="https://docs.stripe.com/webhooks">Webhooks</a>.</aside>
 
+<h2>Ablauf</h2>
+
+<pk-diagram caption="Webhook-Verarbeitung mit Deduplizierung">
+  sequenceDiagram
+    participant S as Stripe
+    participant A as API
+    participant D as DB
+    S->>A: POST /webhooks (event)
+    A->>D: INSERT event_id
+    alt neu
+      D-->>A: ok
+      A->>D: Buchung (gleiche Transaktion)
+      A-->>S: 200
+    else Duplikat
+      D-->>A: unique violation
+      A-->>S: 200 (ignoriert)
+    end
+</pk-diagram>
+
+<h2>Code</h2>
+
+<pk-code language="ts" file="src/webhooks/stripe.ts" start="40" mark="44-46">
+<pre><code>export async function handleEvent(event: Stripe.Event) {
+  await db.transaction(async (tx) =&gt; {
+    // Neu: Event-ID zuerst schreiben – Duplikate scheitern am Unique-Key
+    try {
+      await tx.insert(eventLog).values({ eventId: event.id });
+    } catch (err) {
+      if (isUniqueViolation(err)) return;
+      throw err;
+    }
+    await book(tx, event);
+  });
+}</code></pre>
+<pk-note line="44" severity="suggestion">Hier lieber <code>ON CONFLICT DO NOTHING</code> und die Anzahl betroffener Zeilen prüfen – spart das try/catch.</pk-note>
+<pk-note line="49">Bleibt unverändert.</pk-note>
+</pk-code>
+
+<pk-diff language="ts">
+<pre><code>--- a/src/webhooks/stripe.ts
++++ b/src/webhooks/stripe.ts
+@@ -40,5 +40,11 @@ export async function handleEvent(event: Stripe.Event) {
+ export async function handleEvent(event: Stripe.Event) {
+-  await book(db, event);
++  await db.transaction(async (tx) =&gt; {
++    const inserted = await tx.insert(eventLog).values({ eventId: event.id }).onConflictDoNothing();
++    if (inserted.rowCount === 0) return;
++    await book(tx, event);
++  });
+ }</code></pre>
+<pk-note line="42" severity="blocking"><code>rowCount</code> gibt es beim verwendeten Treiber nicht – <code>returning()</code> nutzen.</pk-note>
+<pk-note old-line="41">Ohne Transaktion konnte eine Buchung ohne Log-Eintrag entstehen.</pk-note>
+</pk-diff>
+
+<p>Migration:</p>
+
+<pre data-language="sql"><code>CREATE TABLE event_log (
+  event_id    text PRIMARY KEY,
+  received_at timestamptz NOT NULL DEFAULT now()
+);</code></pre>
+
 <h2>Umsetzung</h2>
 
 <ol data-steps>
@@ -44,10 +113,7 @@
 
 <details name="technik" open>
   <summary>Technische Details</summary>
-  <pre><code>CREATE TABLE event_log (
-  event_id text PRIMARY KEY,
-  received_at timestamptz NOT NULL DEFAULT now()
-);</code></pre>
+  <p>Aufbewahrung: Event-IDs 90 Tage, danach löscht ein nächtlicher Job.</p>
 </details>
 <details name="technik">
   <summary>Betroffene Dateien</summary>

@@ -1,6 +1,7 @@
 // Baut dist/plan-kit.js (ES-Modul, Lit gebündelt, CSS inline) und dist/plan-kit.css (nur Basis-Stylesheet).
+// Mermaid und der Syntax-Highlighter landen als nachladbare Chunks in dist/chunks/ und werden nur bei Bedarf geladen.
 import * as esbuild from 'esbuild';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm, readdir } from 'node:fs/promises';
 
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url)));
 const watch = process.argv.includes('--watch');
@@ -20,11 +21,15 @@ const cssAsText = {
   },
 };
 
+await rm('dist', { recursive: true, force: true });
 await mkdir('dist', { recursive: true });
 
 const options = {
   entryPoints: ['src/plan-kit.js'],
-  outfile: 'dist/plan-kit.js',
+  outdir: 'dist',
+  entryNames: '[name]',
+  chunkNames: 'chunks/[name]-[hash]',
+  splitting: true,
   bundle: true,
   format: 'esm',
   target,
@@ -42,6 +47,21 @@ if (watch) {
   console.log('plan-kit: watching src/ …');
 } else {
   await esbuild.build(options);
-  await writeFile('dist/plan-kit.css', `/*! plan-kit ${pkg.version} */\n${await minifyCss('src/base.css')}`);
+  await dropChunkSourcemaps();
+  const css = (await minifyCss('src/base.css')) + (await minifyCss('src/lib/tokens.css'));
+  await writeFile('dist/plan-kit.css', `/*! plan-kit ${pkg.version} */\n${css}`);
   console.log(`plan-kit ${pkg.version} → dist/`);
+}
+
+// Sourcemaps nur für unseren eigenen Code behalten. Die Chunks (Mermaid, Highlighter) brächten
+// sonst rund 20 MB pro Version auf GitHub Pages, ohne beim Debuggen von plan-kit zu helfen.
+async function dropChunkSourcemaps() {
+  for (const name of await readdir('dist/chunks')) {
+    const path = `dist/chunks/${name}`;
+    if (name.endsWith('.map')) await rm(path);
+    else if (name.endsWith('.js')) {
+      const code = await readFile(path, 'utf8');
+      await writeFile(path, code.replace(/\n\/\/# sourceMappingURL=\S+\s*$/, '\n'));
+    }
+  }
 }

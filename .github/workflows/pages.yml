@@ -48,7 +48,7 @@ jobs:
             fi
             (cd "$dir" && npm ci --no-audit --no-fund && npm run build)
             mkdir -p "_site/$tag/examples"
-            cp "$dir"/dist/* "_site/$tag/"
+            cp -R "$dir"/dist/. "_site/$tag/"
             # Beispiele gegen die Dateien derselben Version verlinken.
             for f in "$dir"/examples/*.html; do
               sed 's#\.\./dist/#../#g' "$f" > "_site/$tag/examples/$(basename "$f")"

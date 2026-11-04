@@ -26,6 +26,17 @@
   --pk-info: light-dark(#3a6ea5, #7fb0e3);
   --pk-info-bg: light-dark(#e3edf7, #1f2c3a);
 
+  /* Syntax-Highlighting */
+  --pk-tok-keyword: light-dark(#cf222e, #ff7b72);
+  --pk-tok-string: light-dark(#0a3069, #a5d6ff);
+  --pk-tok-comment: light-dark(#6e7781, #8b949e);
+  --pk-tok-number: light-dark(#0550ae, #79c0ff);
+  --pk-tok-function: light-dark(#8250df, #d2a8ff);
+  --pk-tok-type: light-dark(#953800, #ffa657);
+  --pk-tok-property: light-dark(#0550ae, #79c0ff);
+  --pk-tok-tag: light-dark(#116329, #7ee787);
+  --pk-tok-operator: light-dark(#57606a, #8b949e);
+
   --pk-radius: 8px;
   --pk-gap: 1rem;
   --pk-max: 960px;
@@ -335,6 +346,76 @@ figcaption { color: var(--pk-muted); font-size: .9rem; margin-top: .6rem; }
 /* ---------- Ohne JS: eigene Tags als Blöcke darstellen ---------- */
 
 pk-summary, pk-decision { display: block; margin: 0 0 var(--pk-gap); }
+
+/* Ohne JS: pk-code/pk-diff zeigen ihr <pre>, pk-diagram den Mermaid-Code. */
+pk-code, pk-diff, pk-diagram { display: block; margin: 0 0 var(--pk-gap); }
+pk-diagram:not(:defined) {
+  white-space: pre;
+  font-family: var(--pk-mono);
+  font-size: .88em;
+  background: var(--pk-code-bg);
+  padding: 1rem;
+  border-radius: var(--pk-radius);
+  overflow-x: auto;
+}
+
+/* ---------- pk-note: Randnotiz zu einer Codezeile ---------- */
+/* <pk-note line="12" severity="blocking | warning | suggestion | note"> */
+
+pk-note {
+  --pk-kind: var(--pk-muted);
+  --pk-kind-bg: var(--pk-card);
+  --pk-label: "Notiz";
+  display: block;
+  margin: .4rem 0;
+  padding: .4rem .7rem;
+  background: var(--pk-kind-bg);
+  border: 1px solid var(--pk-line);
+  border-left: 3px solid var(--pk-kind);
+  border-radius: 6px;
+  font-size: .92rem;
+
+  &::before {
+    content: var(--pk-label);
+    font-weight: 700;
+    font-size: .75rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--pk-kind);
+    margin-right: .5rem;
+  }
+  /* Ohne JS (noch keiner Zeile zugeordnet): Zeilennummer mit anzeigen. */
+  &[line]:not([slot])::before { content: var(--pk-label) " · Zeile " attr(line); }
+  &[old-line]:not([slot])::before { content: var(--pk-label) " · alte Zeile " attr(old-line); }
+  & > :last-child { margin-bottom: 0; }
+
+  &[severity="blocking"]   { --pk-kind: var(--pk-risk); --pk-kind-bg: var(--pk-risk-bg); --pk-label: "Blocker"; }
+  &[severity="warning"]    { --pk-kind: var(--pk-warn); --pk-kind-bg: var(--pk-warn-bg); --pk-label: "Achtung"; }
+  &[severity="suggestion"] { --pk-kind: var(--pk-info); --pk-kind-bg: var(--pk-info-bg); --pk-label: "Vorschlag"; }
+}
+
+/* ---------- pk-options: Grid für Lösungswege (kein JS nötig) ---------- */
+
+pk-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: .8rem;
+  margin: 0 0 var(--pk-gap);
+}
+/* Ohne JS: wenigstens Titel und Vor-/Nachteile aus den Attributen zeigen. */
+pk-option:not(:defined) {
+  display: block;
+  padding: .8rem 1rem;
+  background: var(--pk-card);
+  border: 1px solid var(--pk-line);
+  border-radius: var(--pk-radius);
+  &[selected] { border: 2px solid var(--pk-accent); }
+  &::before { content: attr(heading); display: block; font-weight: 650; }
+  &:is([pros], [cons])::after { white-space: pre-line; display: block; font-size: .93rem; margin-top: .3rem; }
+  &[pros]::after { content: "+ " attr(pros); }
+  &[cons]::after { content: "− " attr(cons); }
+  &[pros][cons]::after { content: "+ " attr(pros) "\A− " attr(cons); }
+}
 
 @media print {
   body { max-width: none; padding: 0; }

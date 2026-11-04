@@ -4,11 +4,15 @@ Web Components und ein Classless-Stylesheet, mit denen Claude Code Pläne, Explo
 
 Konzept: [`docs/konzept.html`](docs/konzept.html)
 
-## Stand (MVP, Roadmap-Schritt 1)
+## Stand (MVP: Roadmap-Schritt 1 + Options, Code, Diagramme)
 
 - **Classless-Basis-Stylesheet** (`src/base.css`) für native Elemente: `details`/`summary` (animiert, Akkordeon), `aside[data-kind]`, `ol[data-steps]` mit Checkboxen, `table`, `dialog`/`popover`, `progress`/`meter`, `figure`, Code, Inline-Semantik. Dark Mode über `light-dark()`.
 - **`<pk-summary>`** – Kopf des Plans mit Status, Ziel, TL;DR und automatisch gesammelten offenen Fragen.
 - **`<pk-decision>`** – Entscheidung mit Kontext, Entscheidung, Konsequenzen; Status, Datum, Verweise (`supersedes`, `follows-up`).
+- **`<pk-options>` / `<pk-option>`** – Lösungswege als Karten mit Vor- und Nachteilen, `selected` markiert die Wahl.
+- **`<pk-code>` / `<pk-diff>` mit `<pk-note>`** – Code bzw. Diff mit Zeilennummern, hervorgehobenen Zeilen und Randnotizen (Blocker, Achtung, Vorschlag, Notiz) direkt unter der Zeile. Highlighting mit [TanStack Highlight](https://tanstack.com/highlight/latest), lazy (~11 kB gzip).
+- **`<pk-diagram>`** – Mermaid-Diagramme, lazy geladen, folgt Hell/Dunkel.
+- Natives `<pre data-language="…">` wird ebenfalls eingefärbt.
 - Kleiner Fallback für `commandfor`/`command` in älteren Browsern.
 - **Skill** für Claude Code: [`skills/plan-kit/SKILL.md`](skills/plan-kit/SKILL.md)
 - Beispiel: [`examples/beispiel-plan.html`](examples/beispiel-plan.html)
@@ -17,7 +21,8 @@ Konzept: [`docs/konzept.html`](docs/konzept.html)
 
 ```sh
 npm install
-npm run build     # → dist/plan-kit.js (ES-Modul, Lit + CSS gebündelt) und dist/plan-kit.css
+npm run build     # → dist/plan-kit.js (ES-Modul, Lit + CSS gebündelt), dist/plan-kit.css
+                  #   und dist/chunks/ (Mermaid, Highlighter – nur bei Bedarf nachgeladen)
 npm run dev       # Watch-Modus
 npm run serve     # http://localhost:8080/examples/beispiel-plan.html
 ```

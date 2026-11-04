@@ -52,8 +52,8 @@ Der Agent schreibt nur semantische Tags wie <code>&lt;pk-option&gt;</code> oder 
 <tr><td>Auslieferung</td><td>GitHub Pages <span class="mut">(vorher: eigener Asset-Server / S3)</span></td><td>Repo ist öffentlich, kein zusätzlicher Anbieter, keine Zugangsdaten nötig. Code darf öffentlich erreichbar sein, nichts Geheimes. Umzug auf eigenen Asset-Server/S3 bleibt möglich. <b>Version im Pfad</b> (<code>/plan-kit/1.2.0/</code>), damit alte Pläne stabil bleiben.</td></tr>
 <tr><td>Fallback</td><td>Inline-Build</td><td>Skript eingebettet, für Archiv und Teilen ohne Serverzugriff.</td></tr>
 <tr><td>Ohne JS</td><td>Progressive Enhancement</td><td>Nice to have, nicht kritisch: Inhalte stehen als normales HTML in den Tags, ohne JS bleibt der Text ungestylt lesbar.</td></tr>
-<tr><td>Diagramme</td><td>Mermaid (lazy geladen)</td><td>Sehr kompakte Syntax für den Agenten.</td></tr>
-<tr><td>Code</td><td>Shiki oder Prism (lazy)</td><td>Highlighting nur laden, wenn Code vorkommt.</td></tr>
+<tr><td>Diagramme</td><td>Mermaid (lazy geladen)</td><td>Sehr kompakte Syntax für den Agenten. Mermaid und der Highlighter werden mit ausgeliefert (<code>chunks/</code> neben <code>plan-kit.js</code>), kein externes CDN.</td></tr>
+<tr><td>Code</td><td>TanStack Highlight (lazy)</td><td>Highlighting nur laden, wenn Code vorkommt. Klein (~11 kB gzip für rund 25 Sprachen statt ~220 kB mit Shiki), synchron, klassenbasiert – die Farben kommen aus unseren Theme-Variablen. Gröber als Shiki, für Pläne und Reviews ausreichend.</td></tr>
 <tr><td>Basis-Stylesheet</td><td>Classless CSS</td><td>Stylt native Elemente direkt, ohne Klassen – der Agent schreibt einfach normales HTML. Moderne CSS-Features: <code>light-dark()</code>, <code>:has()</code>, <code>::details-content</code> und <code>interpolate-size</code> für animiertes Auf- und Zuklappen.</td></tr>
 <tr><td>Theme</td><td>CSS Custom Properties</td><td>Ein Look überall, Dark Mode per Variable.</td></tr>
 </table></div>
@@ -79,8 +79,8 @@ Der Agent schreibt nur semantische Tags wie <code>&lt;pk-option&gt;</code> oder 
 Feste Struktur in drei Teilen: <b>Kontext</b> (Situation, Rahmenbedingungen), <b>Entscheidung</b> (was und warum) und <b>Konsequenzen</b> (Folgen, Nacharbeiten, Folgeentscheidungen).<br>
 Attribute: <code>id</code> (z. B. <code>webhook-idempotenz</code>), <code>status</code> (proposed · accepted · superseded), <code>date</code>, optional <code>supersedes</code> / <code>follows-up</code> als Verweis auf andere Entscheidungen.</details>
 <details><summary>&lt;pk-amendment&gt; – datierter Nachtrag</summary>Statt eine Entscheidung zu überschreiben, wird neues Wissen mit Datum angehängt und als „nach der Entscheidung hinzugekommen“ markiert – z. B. Erfahrungen aus dem Betrieb oder geänderte Rahmenbedingungen. Grundlegende Änderungen = neue Entscheidung mit <code>supersedes</code>.</details>
-<details><summary>&lt;pk-options&gt; / &lt;pk-option&gt; – Lösungswege vergleichen</summary>Karten im Grid mit pros/cons-Attributen, <code>selected</code> markiert die Wahl.</details>
-<details><summary>&lt;pk-code&gt; / &lt;pk-diff&gt; – Code mit Randnotizen</summary>Sprache per Attribut, <code>&lt;pk-note line="12" severity="blocking"&gt;</code> für Annotationen.</details>
+<details><summary>&lt;pk-options&gt; / &lt;pk-option&gt; – Lösungswege vergleichen</summary>Karten im Grid mit pros/cons-Attributen, <code>selected</code> markiert die Wahl. Titel über <code>heading</code> (nicht <code>title</code>, das erzeugt einen Browser-Tooltip). <code>&lt;pk-options&gt;</code> ist reines CSS-Grid.</details>
+<details><summary>&lt;pk-code&gt; / &lt;pk-diff&gt; – Code mit Randnotizen</summary>Sprache per Attribut <code>language</code> (nicht <code>lang</code> – das ist das globale HTML-Attribut für die natürliche Sprache), <code>&lt;pk-note line="12" severity="blocking"&gt;</code> für Annotationen. Der Code steht als normales <code>&lt;pre&gt;</code> im Tag; Notizen erscheinen direkt unter ihrer Zeile. Im Diff beziehen sich Notizen auf die neue Datei, <code>old-line</code> auf entfernte Zeilen.</details>
 <details><summary>&lt;pk-diagram&gt; – Mermaid-Wrapper</summary>Inhalt = Mermaid-Code, Rendering lazy.</details>
 <details><summary>&lt;pk-feedback&gt; – „Copy as prompt“</summary>Sammelt Häkchen, gewählte Optionen, Kommentare und offene Antworten → ein Prompt für Claude Code.</details>
 
@@ -92,8 +92,8 @@ Attribute: <code>id</code> (z. B. <code>webhook-idempotenz</code>), <code>status
 &lt;/pk-summary&gt;
 
 &lt;pk-options&gt;
-  &lt;pk-option title="DB-Unique-Key" selected pros="einfach;robust" cons="Migration nötig"&gt;&lt;/pk-option&gt;
-  &lt;pk-option title="Redis-Lock" pros="schnell" cons="neue Infra"&gt;&lt;/pk-option&gt;
+  &lt;pk-option heading="DB-Unique-Key" selected pros="einfach;robust" cons="Migration nötig"&gt;&lt;/pk-option&gt;
+  &lt;pk-option heading="Redis-Lock" pros="schnell" cons="neue Infra"&gt;&lt;/pk-option&gt;
 &lt;/pk-options&gt;
 
 &lt;pk-decision id="webhook-idempotenz" status="proposed" date="2026-11-04"&gt;
@@ -191,9 +191,9 @@ decisions/
 
 <h2>11. Roadmap</h2>
 <ol class="steps">
-<li><b>MVP:</b> Classless-Basis-Stylesheet für native Elemente (details, aside, ol mit Checkboxen, table, dialog, progress), dazu summary und decision – Repo, Deployment auf GitHub Pages, Skill.</li>
-<li><code>decisions/</code>-Workflow im Skill, amendment, options; Ordnerstruktur für große Features mit Brotkrumen-Navigation und Status-Übersichten.</li>
-<li>code/diff mit Notizen, diagram, feedback / „Copy as prompt“, Fortschritt speichern.</li>
+<li><b>MVP:</b> Classless-Basis-Stylesheet für native Elemente (details, aside, ol mit Checkboxen, table, dialog, progress), dazu summary, decision, options, code/diff mit Notizen und diagram – Repo, Deployment auf GitHub Pages, Skill.</li>
+<li><code>decisions/</code>-Workflow im Skill, amendment; Ordnerstruktur für große Features mit Brotkrumen-Navigation und Status-Übersichten.</li>
+<li>feedback / „Copy as prompt“, Fortschritt speichern.</li>
 <li>Inline-Build, Dark Mode, eventuell Tabs; später: Verifikations-Agent prüft Code gegen <code>decisions/</code>.</li>
 </ol>
 

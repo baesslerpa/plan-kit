@@ -4,7 +4,9 @@
   "private": true,
   "description": "Web Components und Classless-CSS, mit denen Coding-Agenten Pläne und Entscheidungen als HTML schreiben.",
   "type": "module",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "node scripts/build.js",
     "dev": "node scripts/build.js --watch",
@@ -12,7 +14,9 @@
     "deploy": "npm run build && sh scripts/deploy.sh"
   },
   "dependencies": {
-    "lit": "^3.3.3"
+    "@tanstack/highlight": "^1.2.11",
+    "lit": "^3.3.3",
+    "mermaid": "^12.3.0"
   },
   "devDependencies": {
     "esbuild": "^0.28.2"
