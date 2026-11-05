@@ -1,0 +1,82 @@
+# Release für jsDelivr: https://cdn.jsdelivr.net/gh/<owner>/plan-kit@<version>/dist/plan-kit.js
+#
+# jsDelivr liefert Dateien direkt aus dem Tag – dist/ muss also im getaggten Commit liegen.
+# Damit main frei von Build-Artefakten bleibt, landet dist/ nur auf dem Release-Branch:
+#
+#   Neues Release:  Version in package.json auf main erhöhen → Workflow auf main starten
+#                   → Branch release/X.Y wird angelegt, dist/ committet, Tag X.Y.Z gesetzt.
+#   Hotfix:         Fix auf main, per cherry-pick nach release/X.Y, dort Version erhöhen
+#                   → Workflow auf release/X.Y starten → neuer Tag X.Y.Z+1 auf diesem Branch.
+#
+# Release-Branches werden nie nach main zurückgemergt.
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Version und Ziel-Branch bestimmen
+        id: meta
+        run: |
+          set -eu
+          version=$(node -p "require('./package.json').version")
+          echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::Ungültige Version $version"; exit 1; }
+          if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
+            echo "::error::Tag $version existiert bereits – Version in package.json erhöhen."; exit 1
+          fi
+          minor="${version%.*}"
+          branch="release/$minor"
+          case "$GITHUB_REF_NAME" in
+            main)
+              if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+                echo "::error::$branch existiert bereits. Für einen Hotfix den Workflow auf $branch starten, für ein neues Release die Minor-Version erhöhen."; exit 1
+              fi ;;
+            "$branch") ;;
+            *) echo "::error::Workflow nur auf main oder $branch starten (gestartet auf $GITHUB_REF_NAME)."; exit 1 ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Bauen
+        run: npm ci --no-audit --no-fund && npm run build
+
+      - name: Release-Commit und Tag
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          BRANCH: ${{ steps.meta.outputs.branch }}
+        run: |
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$BRANCH"
+          git add -f -A dist
+          git commit -m "Release $VERSION"
+          git tag -a "$VERSION" -m "plan-kit $VERSION"
+          git push origin "$BRANCH" "refs/tags/$VERSION"
+          base="https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@${VERSION}/dist"
+          {
+            echo "### plan-kit $VERSION veröffentlicht"
+            echo
+            echo '```html'
+            echo "<link rel=\"stylesheet\" href=\"$base/plan-kit.css\">"
+            echo "<script type=\"module\" src=\"$base/plan-kit.js\"></script>"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -24,12 +24,12 @@ button{background:var(--acc);color:#fff;border:0;padding:10px 16px;border-radius
 textarea{width:100%;min-height:80px;font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
 .tw{overflow-x:auto}
 </style></head><body><main>
-<p class="mut">Konzept · Entwurf v0.5 · 4. November 2026</p>
+<p class="mut">Konzept · Entwurf v0.6 · 4. November 2026</p>
 <h1>plan-kit</h1>
 <p>Eine kleine Bibliothek aus Web Components, mit der Claude Code Pläne, Explorationen und Reviews als HTML schreibt – <b>tokensparend, konsistent im Look und auf einen Blick lesbar</b>. Dazu ein schlankes Entscheidungs-Log nach dem Vorbild von Architecture Decision Records (ADRs).</p>
 
 <div class="tldr"><b>TL;DR</b><br>
-Der Agent schreibt nur semantische Tags wie <code>&lt;pk-option&gt;</code> oder <code>&lt;pk-decision&gt;</code>. Styling, Verhalten und Interaktion stecken in <b>einer</b> Lit-basierten JS-Datei, die versioniert von <b>GitHub Pages</b> geladen wird. Große Features werden nicht zum Megadokument, sondern zu mehreren verlinkten Seiten: eine Feature-Übersicht, darunter Phasen und kleine Aufgaben. Pläne sind kurzlebig – akzeptierte Entscheidungen wandern in einen <code>decisions/</code>-Ordner im Repo und bleiben. Ein Claude-Code-Skill beschreibt die Komponenten kompakt, damit der Agent sie zuverlässig nutzt.<br><br><b>Native zuerst:</b> Das Kit stylt alle Standard-HTML-Elemente mit (<code>&lt;details&gt;</code>, <code>&lt;dialog&gt;</code>, <code>&lt;table&gt;</code>, <code>&lt;progress&gt;</code> …). Eigene Komponenten gibt es nur dort, wo HTML keine passende Semantik hat.</div>
+Der Agent schreibt nur semantische Tags wie <code>&lt;pk-option&gt;</code> oder <code>&lt;pk-decision&gt;</code>. Styling, Verhalten und Interaktion stecken in <b>einer</b> Lit-basierten JS-Datei, die versioniert über <b>jsDelivr</b> aus dem GitHub-Repo geladen wird. Große Features werden nicht zum Megadokument, sondern zu mehreren verlinkten Seiten: eine Feature-Übersicht, darunter Phasen und kleine Aufgaben. Pläne sind kurzlebig – akzeptierte Entscheidungen wandern in einen <code>decisions/</code>-Ordner im Repo und bleiben. Ein Claude-Code-Skill beschreibt die Komponenten kompakt, damit der Agent sie zuverlässig nutzt.<br><br><b>Native zuerst:</b> Das Kit stylt alle Standard-HTML-Elemente mit (<code>&lt;details&gt;</code>, <code>&lt;dialog&gt;</code>, <code>&lt;table&gt;</code>, <code>&lt;progress&gt;</code> …). Eigene Komponenten gibt es nur dort, wo HTML keine passende Semantik hat.</div>
 
 <h2>1. Problem</h2>
 <ul>
@@ -49,7 +49,7 @@ Der Agent schreibt nur semantische Tags wie <code>&lt;pk-option&gt;</code> oder 
 <div class="tw"><table>
 <tr><th>Bereich</th><th>Wahl</th><th>Warum</th></tr>
 <tr><td>Komponenten</td><td>Lit (≈5 kB)</td><td>Echte Custom Elements, kein Build für Nutzer, angenehme DX. Alternative: Vanilla Custom Elements.</td></tr>
-<tr><td>Auslieferung</td><td>GitHub Pages <span class="mut">(vorher: eigener Asset-Server / S3)</span></td><td>Repo ist öffentlich, kein zusätzlicher Anbieter, keine Zugangsdaten nötig. Code darf öffentlich erreichbar sein, nichts Geheimes. Umzug auf eigenen Asset-Server/S3 bleibt möglich. <b>Version im Pfad</b> (<code>/plan-kit/1.2.0/</code>), damit alte Pläne stabil bleiben.</td></tr>
+<tr><td>Auslieferung</td><td>jsDelivr aus GitHub-Tags <span class="mut">(vorher: GitHub Pages, davor eigener Asset-Server / S3)</span></td><td>Repo ist öffentlich, kein Konto und keine Zugangsdaten nötig, schnelles CDN. Code darf öffentlich erreichbar sein, nichts Geheimes. Umzug auf eigenen Asset-Server/S3 bleibt möglich. <b>Version im Pfad</b> (<code>/plan-kit/1.2.0/</code>), damit alte Pläne stabil bleiben.</td></tr>
 <tr><td>Fallback</td><td>Inline-Build</td><td>Skript eingebettet, für Archiv und Teilen ohne Serverzugriff.</td></tr>
 <tr><td>Ohne JS</td><td>Progressive Enhancement</td><td>Nice to have, nicht kritisch: Inhalte stehen als normales HTML in den Tags, ohne JS bleibt der Text ungestylt lesbar.</td></tr>
 <tr><td>Diagramme</td><td>Mermaid (lazy geladen)</td><td>Sehr kompakte Syntax für den Agenten. Mermaid und der Highlighter werden mit ausgeliefert (<code>chunks/</code> neben <code>plan-kit.js</code>), kein externes CDN.</td></tr>
@@ -85,7 +85,7 @@ Attribute: <code>id</code> (z. B. <code>webhook-idempotenz</code>), <code>status
 <details><summary>&lt;pk-feedback&gt; – „Copy as prompt“</summary>Sammelt Häkchen, gewählte Optionen, Kommentare und offene Antworten → ein Prompt für Claude Code.</details>
 
 <h2>6. So schreibt der Agent einen Plan</h2>
-<pre>&lt;script type="module" src="https://baesslerpa.github.io/plan-kit/0.1.0/plan-kit.js"&gt;&lt;/script&gt;
+<pre>&lt;script type="module" src="https://cdn.jsdelivr.net/gh/baesslerpa/plan-kit@0.1.0/dist/plan-kit.js"&gt;&lt;/script&gt;
 
 &lt;pk-summary status="review" goal="Stripe-Webhooks idempotent machen"&gt;
   Doppelte Events führen zu doppelten Buchungen. Fix über Event-ID-Tabelle.
@@ -177,7 +177,7 @@ decisions/
 </ul>
 
 <h2>10. Risiken & offene Punkte</h2>
-<div class="callout risk"><b>Risiko:</b> GitHub Pages nicht erreichbar → kein Styling. Gegenmittel: Pläne bleiben dank Progressive Enhancement lesbar; Inline-Build fürs Archivieren/Teilen.</div>
+<div class="callout risk"><b>Risiko:</b> jsDelivr nicht erreichbar → kein Styling. Gegenmittel: Pläne bleiben dank Progressive Enhancement lesbar; Inline-Build fürs Archivieren/Teilen.</div>
 <div class="callout risk"><b>Risiko:</b> Breaking Changes an Komponenten. Gegenmittel: SemVer + Version immer im Pfad pinnen.</div>
 <div class="callout risk"><b>Risiko:</b> Sehr neue Features (Invoker-Commands, Animation von <code>&lt;details&gt;</code>) fehlen in älteren Browsern. Gegenmittel: Sie verbessern nur, die Grundfunktion bleibt; Fallback-Skript nur für Dialog-Öffnen.</div>
 <div class="callout risk"><b>Risiko:</b> <code>decisions/</code> verwaist, wenn niemand Entscheidungen überträgt. Gegenmittel: Der Skill macht das Übertragen zum festen letzten Schritt.</div>
@@ -186,12 +186,13 @@ decisions/
 <div class="callout dec"><b>Entscheidung:</b> Lit statt React – kein Build-Schritt für Konsumenten, kleine Bundle-Größe.</div>
 <div class="callout dec"><b>Entscheidung:</b> Native HTML-Elemente haben Vorrang und werden vom Kit mitgestylt. <code>pk-section</code>, <code>pk-steps</code>, <code>pk-risk</code> und <code>pk-question</code> entfallen zugunsten von <code>&lt;details&gt;</code>, <code>&lt;ol&gt;</code> mit Checkboxen und <code>&lt;aside&gt;</code>.</div>
 <div class="callout dec" style="opacity:.7"><s><b>Entscheidung:</b> Hosting auf dem firmeneigenen Asset-Server/S3 statt öffentlichem CDN – Unabhängigkeit vom Anbieter.</s> <i>(abgelöst, siehe unten)</i></div>
-<div class="callout dec"><b>Entscheidung (4. November 2026, löst die vorige ab):</b> Hosting erst einmal auf <b>GitHub Pages</b> (<code>https://baesslerpa.github.io/plan-kit/&lt;version&gt;/</code>). Das Repo ist ohnehin öffentlich, es kommt kein weiterer Anbieter dazu, und es braucht keine Zugangsdaten. Ein Workflow baut bei jedem Versions-Tag alle Versionen neu, die Version bleibt im Pfad. Das S3-Deploy-Skript bleibt als Ausweg, falls wir doch umziehen. Direkt aus dem Repo (<code>raw.githubusercontent.com</code>) geht nicht: falscher MIME-Typ, Browser verweigern das Modul.</div>
+<div class="callout dec" style="opacity:.7"><s><b>Entscheidung (4. November 2026, löst die vorige ab):</b> Hosting erst einmal auf <b>GitHub Pages</b> (<code>https://baesslerpa.github.io/plan-kit/&lt;version&gt;/</code>). Das Repo ist ohnehin öffentlich, es kommt kein weiterer Anbieter dazu, und es braucht keine Zugangsdaten. Ein Workflow baut bei jedem Versions-Tag alle Versionen neu, die Version bleibt im Pfad. Das S3-Deploy-Skript bleibt als Ausweg, falls wir doch umziehen. Direkt aus dem Repo (<code>raw.githubusercontent.com</code>) geht nicht: falscher MIME-Typ, Browser verweigern das Modul.</s> <i>(abgelöst, siehe unten)</i></div>
+<div class="callout dec"><b>Entscheidung (5. November 2026, löst die vorige ab):</b> Auslieferung über <b>jsDelivr direkt aus dem GitHub-Tag</b>: <code>https://cdn.jsdelivr.net/gh/baesslerpa/plan-kit@&lt;version&gt;/dist/plan-kit.js</code>. Schnelles CDN ohne Konto, Secrets oder Pages-Einrichtung. Weil jsDelivr nichts baut, liegt <code>dist/</code> im getaggten Commit – aber nur auf dem Release-Branch <code>release/X.Y</code>, den ein Workflow anlegt; <code>main</code> bleibt frei von Build-Artefakten. Bewusst in Kauf genommen: jsDelivr ist ein Drittanbieter. Ausweg bleibt das S3-Deploy-Skript.</div>
 <div class="callout dec"><b>Entscheidung:</b> Lesbarkeit ohne JS ist nice to have, wird aber von Anfang an mitgedacht, weil es kaum Aufwand kostet.</div>
 
 <h2>11. Roadmap</h2>
 <ol class="steps">
-<li><b>MVP:</b> Classless-Basis-Stylesheet für native Elemente (details, aside, ol mit Checkboxen, table, dialog, progress), dazu summary, decision, options, code/diff mit Notizen und diagram – Repo, Deployment auf GitHub Pages, Skill.</li>
+<li><b>MVP:</b> Classless-Basis-Stylesheet für native Elemente (details, aside, ol mit Checkboxen, table, dialog, progress), dazu summary, decision, options, code/diff mit Notizen und diagram – Repo, Release-Workflow für jsDelivr, Skill.</li>
 <li><code>decisions/</code>-Workflow im Skill, amendment; Ordnerstruktur für große Features mit Brotkrumen-Navigation und Status-Übersichten.</li>
 <li>feedback / „Copy as prompt“, Fortschritt speichern.</li>
 <li>Inline-Build, Dark Mode, eventuell Tabs; später: Verifikations-Agent prüft Code gegen <code>decisions/</code>.</li>

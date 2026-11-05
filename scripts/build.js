@@ -54,7 +54,7 @@ if (watch) {
 }
 
 // Sourcemaps nur für unseren eigenen Code behalten. Die Chunks (Mermaid, Highlighter) brächten
-// sonst rund 20 MB pro Version auf GitHub Pages, ohne beim Debuggen von plan-kit zu helfen.
+// sonst rund 20 MB pro Release in den Release-Branch (und damit ins Repo), ohne beim Debuggen von plan-kit zu helfen.
 async function dropChunkSourcemaps() {
   for (const name of await readdir('dist/chunks')) {
     const path = `dist/chunks/${name}`;

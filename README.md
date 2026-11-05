@@ -32,19 +32,26 @@ Module laden nicht über `file://` – zum Ansehen lokal immer über einen HTTP-
 ## Einbinden
 
 ```html
-<link rel="stylesheet" href="https://baesslerpa.github.io/plan-kit/0.1.0/plan-kit.css"> <!-- optional: Styling ohne JS -->
-<script type="module" src="https://baesslerpa.github.io/plan-kit/0.1.0/plan-kit.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/baesslerpa/plan-kit@0.1.0/dist/plan-kit.css"> <!-- optional: Styling ohne JS -->
+<script type="module" src="https://cdn.jsdelivr.net/gh/baesslerpa/plan-kit@0.1.0/dist/plan-kit.js"></script>
 ```
 
-Die Version steht immer im Pfad, damit alte Pläne stabil bleiben. Übersicht aller Versionen: <https://baesslerpa.github.io/plan-kit/>
+Ausgeliefert über [jsDelivr](https://www.jsdelivr.com/) direkt aus dem GitHub-Tag. Die Version steht immer im Pfad, damit alte Pläne stabil bleiben.
 
 ## Release
 
-1. Version in `package.json` erhöhen (SemVer), committen.
-2. Tag ohne `v`-Präfix setzen und pushen: `git tag 0.2.0 && git push origin 0.2.0`
-3. Der Workflow [`pages.yml`](.github/workflows/pages.yml) baut **alle** Versions-Tags und veröffentlicht sie auf GitHub Pages unter `/plan-kit/<version>/`. Tag und `package.json`-Version müssen übereinstimmen.
+jsDelivr liefert Dateien aus dem getaggten Commit – `dist/` muss dort also eingecheckt sein. Damit `main` frei von Build-Artefakten bleibt, landet `dist/` nur auf dem Release-Branch. Das erledigt der Workflow [`release.yml`](.github/workflows/release.yml) (*Actions → Release → Run workflow*).
 
-Einmalig nötig: unter *Settings → Pages → Build and deployment* die Quelle auf **GitHub Actions** stellen.
+**Neues Release (X.Y.0)**
+1. Auf `main` die Version in `package.json` erhöhen (`npm version 0.2.0 --no-git-tag-version`), committen, pushen.
+2. Workflow auf `main` starten → legt `release/0.2` an, committet `dist/`, setzt Tag `0.2.0`.
+
+**Hotfix (X.Y.Z+1)**
+1. Fix auf `main` committen.
+2. Per `git cherry-pick` nach `release/X.Y` übernehmen, dort die Patch-Version erhöhen, pushen.
+3. Workflow auf `release/X.Y` starten → neuer Tag auf diesem Branch.
+
+Release-Branches werden nie nach `main` zurückgemergt. Tags ohne `v`-Präfix.
 
 ### Alternative: eigener Asset-Server
 
